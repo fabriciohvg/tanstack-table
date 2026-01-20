@@ -58,6 +58,31 @@ Uses @dnd-kit for drag and drop. Key components:
 - `SortableContext` - Wraps sortable items (headers, cells)
 - `useSortable` - Hook for drag state on individual elements
 
+### Column Filtering with Faceted Values
+
+For dynamic filter options, use faceted row models:
+
+```tsx
+const table = useReactTable({
+  // ... other options
+  getFilteredRowModel: getFilteredRowModel(),
+  getFacetedRowModel: getFacetedRowModel(),
+  getFacetedUniqueValues: getFacetedUniqueValues(), // for select/autocomplete options
+  getFacetedMinMaxValues: getFacetedMinMaxValues(), // for range filter bounds
+})
+```
+
+Extend `ColumnMeta` for custom filter variants (requires eslint-disable for unused generics):
+
+```tsx
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends RowData, TValue> {
+    filterVariant?: "text" | "range" | "select";
+  }
+}
+```
+
 ## Common Gotchas
 
 ### Hydration Mismatch with @dnd-kit
@@ -94,6 +119,25 @@ TanStack Table's `useReactTable()` returns non-memoizable functions. Add `"use n
 "use client";
 ```
 
+### Debounced Inputs Reset Pagination
+
+TanStack Table resets pagination to page 0 when filters change. Debounced inputs can accidentally trigger this on every re-render if they call `onChange` even when the value hasn't changed.
+
+```tsx
+// Wrong - calls onChange on mount and every re-render
+useEffect(() => {
+  const timeout = setTimeout(() => onChange(value), debounce);
+  return () => clearTimeout(timeout);
+}, [value, debounce, onChange]);
+
+// Right - only calls onChange when user has actually typed
+useEffect(() => {
+  if (value === controlledValue) return; // skip if no change
+  const timeout = setTimeout(() => onChange(value), debounce);
+  return () => clearTimeout(timeout);
+}, [value, controlledValue, debounce, onChange]);
+```
+
 ## Next.js 16 Breaking Changes
 
 ### Middleware → Proxy Rename
@@ -124,3 +168,4 @@ The `table/` directory contains TanStack Table documentation and examples. These
 - `/basic` - Basic table with column definitions and cell rendering
 - `/column-ordering` - Column visibility toggles and shuffle/reset ordering
 - `/column-dnd` - Drag and drop column reordering with @dnd-kit
+- `/column-filters` - Faceted column filtering with text, range, and select variants
