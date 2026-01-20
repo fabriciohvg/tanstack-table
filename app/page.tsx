@@ -47,6 +47,14 @@ export default function Home() {
                 Column Filters
               </Link>
             </li>
+            <li>
+              <Link
+                href="/row-dnd"
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Row Drag & Drop
+              </Link>
+            </li>
           </ul>
         </nav>
       </main>
