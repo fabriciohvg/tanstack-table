@@ -235,6 +235,16 @@ export function DataTable({ data }: DataTableProps) {
 
   return (
     <div className="space-y-4">
+      {/* Clear Filters Button */}
+      {columnFilters.length > 0 && (
+        <button
+          onClick={() => setColumnFilters([])}
+          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          Clear All Filters ({columnFilters.length})
+        </button>
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
         <table className="w-full">
