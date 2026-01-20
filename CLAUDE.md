@@ -170,3 +170,4 @@ The `table/` directory contains TanStack Table documentation and examples. These
 - `/column-dnd` - Drag and drop column reordering with @dnd-kit
 - `/column-filters` - Faceted column filtering with text, range, and select variants
 - `/row-dnd` - Drag and drop row reordering with @dnd-kit
+- `/editable-data` - Inline cell editing with pagination-safe updates

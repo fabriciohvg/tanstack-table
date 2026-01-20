@@ -55,6 +55,14 @@ export default function Home() {
                 Row Drag & Drop
               </Link>
             </li>
+            <li>
+              <Link
+                href="/editable-data"
+                className="text-blue-600 hover:underline dark:text-blue-400"
+              >
+                Editable Data
+              </Link>
+            </li>
           </ul>
         </nav>
       </main>
