@@ -83,6 +83,66 @@ declare module "@tanstack/react-table" {
 }
 ```
 
+### Editable Cells with TableMeta
+
+For inline editing, extend `TableMeta` to pass an update function through the table context:
+
+```tsx
+declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData extends RowData> {
+    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
+  }
+}
+
+const table = useReactTable({
+  // ...
+  meta: {
+    updateData: (rowIndex, columnId, value) => {
+      setData((old) => old.map((row, i) =>
+        i === rowIndex ? { ...row, [columnId]: value } : row
+      ));
+    },
+  },
+});
+```
+
+Use `defaultColumn` to make all cells editable by default:
+
+```tsx
+const defaultColumn: Partial<ColumnDef<Person>> = {
+  cell: ({ getValue, row, column, table }) => {
+    const [value, setValue] = useState(getValue());
+    const onBlur = () => table.options.meta?.updateData(row.index, column.id, value);
+    return <input value={value} onChange={e => setValue(e.target.value)} onBlur={onBlur} />;
+  },
+};
+```
+
+### Preventing Pagination Reset on Edit
+
+Use the `useSkipper` pattern to prevent pagination from resetting when data changes:
+
+```tsx
+function useSkipper() {
+  const shouldSkipRef = useRef(true);
+  const skip = useCallback(() => { shouldSkipRef.current = false; }, []);
+  useEffect(() => { shouldSkipRef.current = true; }); // Reset after render
+  return [shouldSkipRef.current, skip] as const;
+}
+
+const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper();
+const table = useReactTable({
+  autoResetPageIndex,
+  meta: {
+    updateData: (rowIndex, columnId, value) => {
+      skipAutoResetPageIndex(); // Call before setData
+      setData(/* ... */);
+    },
+  },
+});
+```
+
 ## Common Gotchas
 
 ### Hydration Mismatch with @dnd-kit
