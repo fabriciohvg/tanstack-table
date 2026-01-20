@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a learning project for mastering TanStack Table + TypeScript + Next.js patterns. The goal is to convert the Vite-based examples in `table/examples/` to Next.js 16 App Router patterns.
 
-Tech stack: Next.js 16, React 19, TypeScript, Tailwind CSS 4, @tanstack/react-table, Bun.
+Tech stack: Next.js 16, React 19, TypeScript, Tailwind CSS 4, @tanstack/react-table, @dnd-kit, Bun.
 
 ## Commands
 
@@ -18,6 +18,8 @@ Tech stack: Next.js 16, React 19, TypeScript, Tailwind CSS 4, @tanstack/react-ta
 ## Project Structure
 
 - `app/` - Next.js App Router pages and layouts
+  - `app/<example>/page.tsx` - Server Component (data, layout)
+  - `app/<example>/data-table.tsx` - Client Component (`"use client"`, TanStack Table logic)
 - `table/docs/` - TanStack Table documentation (copied from the official repo for reference)
 - `table/examples/react/` - TanStack Table React examples (Vite-based, for reference only)
 
@@ -49,6 +51,49 @@ Uses Tailwind CSS 4 with CSS variables for theming. Dark mode is supported via `
 
 `@/*` maps to the project root (configured in tsconfig.json).
 
+### Column Ordering with Drag & Drop
+
+Uses @dnd-kit for drag and drop. Key components:
+- `DndContext` - Wraps table (must be outside `<table>` as it creates divs)
+- `SortableContext` - Wraps sortable items (headers, cells)
+- `useSortable` - Hook for drag state on individual elements
+
+## Common Gotchas
+
+### Hydration Mismatch with @dnd-kit
+
+@dnd-kit generates different `aria-describedby` IDs on server vs client. Fix with a mounted guard:
+
+```tsx
+const [isMounted, setIsMounted] = useState(false);
+useEffect(() => setIsMounted(true), []);
+
+return isMounted ? <DnDTable /> : <StaticTable />;
+```
+
+### Tailwind `last:` in Tables
+
+`last:` targets the last child within its parent:
+- On `<td>`: last cell in row (last **column**) ❌
+- On `<tr>`: last row in tbody ✅
+
+```tsx
+// Wrong - removes border from last COLUMN
+<td className="border-b last:border-0">
+
+// Right - removes border from last ROW
+<tr className="last:[&>td]:border-b-0">
+```
+
+### React Compiler Warning with TanStack Table
+
+TanStack Table's `useReactTable()` returns non-memoizable functions. Add `"use no memo"` directive to silence the warning:
+
+```tsx
+"use no memo";
+"use client";
+```
+
 ## Next.js 16 Breaking Changes
 
 ### Middleware → Proxy Rename
@@ -73,3 +118,9 @@ The functionality remains the same—only the naming convention changed.
 ## Reference Material
 
 The `table/` directory contains TanStack Table documentation and examples. These are Vite-based examples meant as reference - adapt them to Next.js App Router patterns (Server/Client Components) when implementing.
+
+## Implemented Examples
+
+- `/basic` - Basic table with column definitions and cell rendering
+- `/column-ordering` - Column visibility toggles and shuffle/reset ordering
+- `/column-dnd` - Drag and drop column reordering with @dnd-kit
