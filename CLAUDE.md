@@ -119,6 +119,113 @@ const defaultColumn: Partial<ColumnDef<Person>> = {
 };
 ```
 
+### Expanding Rows (Hierarchical Data)
+
+For tree-structured data with expand/collapse functionality:
+
+```tsx
+type WbsItem = {
+  id: string;
+  name: string;
+  subRows?: WbsItem[]; // Recursive children
+};
+
+const [expanded, setExpanded] = useState<ExpandedState>(true); // true = all expanded
+
+const table = useReactTable({
+  data,
+  columns,
+  state: { expanded },
+  onExpandedChange: setExpanded,
+  getSubRows: (row) => row.subRows,
+  getCoreRowModel: getCoreRowModel(),
+  getExpandedRowModel: getExpandedRowModel(),
+  getRowId: (row) => row.id,
+});
+```
+
+Key row properties for hierarchical rendering:
+- `row.depth` - Nesting level (0 = root)
+- `row.parentId` - Parent row's ID (undefined for root)
+- `row.getCanExpand()` - Has children?
+- `row.getIsExpanded()` - Currently expanded?
+- `row.getToggleExpandedHandler()` - Click handler
+
+### Same-Level DnD for Hierarchical Data
+
+When combining expanding rows with drag-and-drop, constrain drops to siblings only:
+
+```tsx
+function handleDragEnd(event: DragEndEvent) {
+  const { active, over } = event;
+  if (!active || !over || active.id === over.id) return;
+
+  const activeRow = table.getRowModel().rows.find(r => r.original.id === active.id);
+  const overRow = table.getRowModel().rows.find(r => r.original.id === over.id);
+
+  // Same-level constraint: only allow drops on siblings
+  if (activeRow?.parentId !== overRow?.parentId) return;
+
+  setData(current => reorderInTree(current, activeRow.parentId, active.id, over.id));
+}
+```
+
+Reorder helper for nested data:
+
+```tsx
+function reorderInTree(items: Item[], parentId: string | undefined, activeId: string, overId: string): Item[] {
+  if (parentId === undefined) {
+    // Reorder at root level
+    const oldIdx = items.findIndex(i => i.id === activeId);
+    const newIdx = items.findIndex(i => i.id === overId);
+    return arrayMove(items, oldIdx, newIdx);
+  }
+  // Recursively find parent and reorder its subRows
+  return items.map(item => {
+    if (item.id === parentId && item.subRows) {
+      const oldIdx = item.subRows.findIndex(s => s.id === activeId);
+      const newIdx = item.subRows.findIndex(s => s.id === overId);
+      return { ...item, subRows: arrayMove(item.subRows, oldIdx, newIdx) };
+    }
+    return item.subRows ? { ...item, subRows: reorderInTree(item.subRows, parentId, activeId, overId) } : item;
+  });
+}
+```
+
+### Full Tree DnD with dnd-kit-sortable-tree
+
+For full tree manipulation (reparenting, indent/outdent), use the `dnd-kit-sortable-tree` library:
+
+```tsx
+import { SortableTree, SimpleTreeItemWrapper, TreeItemComponentProps, TreeItems } from "dnd-kit-sortable-tree";
+
+type MyData = { name: string; status: string };
+
+// Custom tree item component
+const MyTreeItem = forwardRef<HTMLDivElement, TreeItemComponentProps<MyData>>((props, ref) => (
+  <SimpleTreeItemWrapper {...props} ref={ref}>
+    <span>{props.item.name}</span>
+  </SimpleTreeItemWrapper>
+));
+
+// Usage
+<SortableTree
+  items={data}
+  onItemsChanged={(newItems, reason) => {
+    setData(newItems);
+    console.log(reason.type); // 'dropped' | 'collapsed' | 'expanded' | 'removed'
+  }}
+  TreeItemComponent={MyTreeItem}
+  indentationWidth={24}
+/>
+```
+
+Key features:
+- `onItemsChanged` receives the updated tree AND a `reason` object
+- `SimpleTreeItemWrapper` handles all drag mechanics (expand/collapse, drag handle)
+- Horizontal drag controls indent/outdent automatically
+- Use `canHaveChildren` prop on items to restrict nesting
+
 ### Preventing Pagination Reset on Edit
 
 Use the `useSkipper` pattern to prevent pagination from resetting when data changes:
@@ -147,13 +254,21 @@ const table = useReactTable({
 
 ### Hydration Mismatch with @dnd-kit
 
-@dnd-kit generates different `aria-describedby` IDs on server vs client. Fix with a mounted guard:
+@dnd-kit generates different `aria-describedby` IDs on server vs client. Fix with a client-only guard:
 
 ```tsx
+// Preferred: useSyncExternalStore (avoids ESLint warnings)
+const emptySubscribe = () => () => {};
+function useIsClient() {
+  return useSyncExternalStore(emptySubscribe, () => true, () => false);
+}
+
+const isClient = useIsClient();
+return isClient ? <DnDTable /> : <StaticTable />;
+
+// Alternative: useState + useEffect (triggers ESLint set-state-in-effect warning)
 const [isMounted, setIsMounted] = useState(false);
 useEffect(() => setIsMounted(true), []);
-
-return isMounted ? <DnDTable /> : <StaticTable />;
 ```
 
 ### Tailwind `last:` in Tables
@@ -231,3 +346,5 @@ The `table/` directory contains TanStack Table documentation and examples. These
 - `/column-filters` - Faceted column filtering with text, range, and select variants
 - `/row-dnd` - Drag and drop row reordering with @dnd-kit
 - `/editable-data` - Inline cell editing with pagination-safe updates
+- `/wbs` - Work Breakdown Structure with expanding rows and same-level DnD
+- `/wbs-tree` - Full WBS tree with reparenting, indent/outdent via dnd-kit-sortable-tree

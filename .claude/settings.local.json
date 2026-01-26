@@ -1,8 +1,11 @@
 {
-  "outputStyle": "Learning",
   "permissions": {
     "allow": [
-      "Bash(bun run build:*)"
+      "Bash(bun run build:*)",
+      "Bash(bun add:*)",
+      "Bash(bun lint:*)",
+      "Bash(npx eslint:*)"
     ]
-  }
+  },
+  "outputStyle": "Learning"
 }
